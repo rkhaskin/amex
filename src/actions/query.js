@@ -44,7 +44,10 @@ export function queryResource({ resource, id, opts, forceFetch }) {
 export function queryCollection({ resource, id, opts, forceFetch }) {
   return (dispatch, getState) => {
     const state = getState();
+    // on the first iteration returns an empty data[]
     const data = getCollection({ resource, id, opts })(state);
+
+    // check if collection exists in the store aleady
     const status = collectionIsLoaded({ resource, id, opts })(state) && !forceFetch ? 'complete' : 'loading';
     const error = data instanceof Error && data;
     const promise = dispatch(loadCollection({ resource, id, opts, forceFetch }));

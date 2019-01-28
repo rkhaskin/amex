@@ -15,6 +15,7 @@
  */
 
 const config = {
+  // method to invoke to call the API. This is the browser fetch method
   baseFetch: fetch,
   getToState: state => state.resources,
 };

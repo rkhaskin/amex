@@ -24,6 +24,7 @@ import {
   getQueryHash,
 } from './helpers/hash';
 
+// destructuring from iguazuRestTypes
 const {
   LOAD_STARTED,
   LOAD_COLLECTION_STARTED,
@@ -44,6 +45,7 @@ const {
 } = iguazuRestTypes;
 const iguazuRestTypesArray = Object.keys(iguazuRestTypes).map(key => iguazuRestTypes[key]);
 
+// API will return data record(s). in the config file specify the id field of the record in the idKey if it is not "id"
 function getIdKey(resource) {
   return config.resources[resource].idKey || 'id';
 }
@@ -64,11 +66,19 @@ export function resourceReducer(state, action) {
       const idHash = getResourceIdHash(id);
       return state.update('loading', map => map.set(idHash, promise));
     }
-
+     
+    // insert (does not exist) or update(exists) state.loading property with the promise.
+    /* state.toJS()
+       Object {items: Object, collections: Object, loading: Object {}, 
+       isCreating: false, updating: Object, …}
+       newState.toJS():    
+       loading:Object {323217f643c3e3f1fe7532e72ac01bb0748c97be: Object}   
+    */
     case LOAD_COLLECTION_STARTED: {
       const { id, opts, promise } = action;
       const collectionIdHash = getCollectionIdHash(id);
       const queryHash = getQueryHash(opts);
+      // update a specific portion of the state
       return state.update('loading', map => map.setIn([collectionIdHash, queryHash], promise));
     }
 
@@ -113,13 +123,28 @@ export function resourceReducer(state, action) {
       const { id, resource: resourceType, data, opts } = action;
       const collectionIdHash = getCollectionIdHash(id);
       const queryHash = getQueryHash(opts);
+      // get the primary key field from the config file (if different from "id")
       const idKey = getIdKey(resourceType);
+
+      // will have an array of similar structure: 
+      //Object {cdd4ef1cda093d2161a5167a99515fac047be3cc: Object, ed89c571e43edb619b53faabed3c7432e62f1dfd: Object, a6823bcac2cc59deefa92eb683e84a4a81561d0e: Object,...}
+      // where the hash is a hash of the "id" value. It is now a key pointing to a data object
       const resourceMap = data instanceof Array ?
-        data.reduce((map, resource) => {
+        // map is an object
+        data.reduce((map, resource) => {     
+          // getResourceIdHash with the {id:1, .....} value of "id" property of the data object. Supposedly, it is unique, so 
           const resourceIdHash = getResourceIdHash(resource[idKey]);
+          // map is a target object, { [resourceIdHash]: resource } is the source object. Source is copied in the target and target is returned.
           return Object.assign(map, { [resourceIdHash]: resource });
         }, {}) : {};
+
+      // get all the keys from the resourceMap: [cdd4ef1cda093d2161a5167a99515fac047be3cc, ed89c571e43edb619b53faabed3c7432e62f1dfd, a6823bcac2cc59deefa92eb683e84a4a81561d0e ....]  
       const associatedIds = Object.keys(resourceMap);
+
+      /*
+      If you need to apply a series of mutations to produce a new immutable Map, withMutations() creates a temporary mutable copy of the Map which can apply mutations 
+      in a highly performant manner. In fact, this is exactly how complex mutations like merge are done.
+      */
       return state.withMutations(resourceState =>
         resourceState
           .deleteIn(['loading', collectionIdHash, queryHash])
@@ -212,12 +237,17 @@ export default function rootReducer(state = iMap(), action) {
   if (action.type === RESET) {
     return iMap();
   } else if (iguazuRestTypesArray.includes(action.type)) {
+    // returns a new state
     return state.update(
+      // update this key
       action.resource,
+      // notSetValue
       initialResourceState,
+      // updater function
       resourceState => resourceReducer(resourceState, action)
     );
   }
 
+  // state is initialized the first iteration
   return state;
 }

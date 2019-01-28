@@ -50,25 +50,51 @@ export function getResourceLoadPromise({ resource, id }) {
   return state => config.getToState(state).getIn([resource, 'loading', getResourceIdHash(id)]);
 }
 
+// query the state.resources[resource].collections for idHash->queryHash
 export function collectionIsLoaded({ resource, id, opts }) {
   return (state) => {
     const idHash = getCollectionIdHash(id);
     const queryHash = getQueryHash(opts);
+    // !! syntax is needed to counter "undefined"???
     return !!config.getToState(state).getIn([resource, 'collections', idHash, queryHash]);
   };
 }
 
 export function getCollection({ resource, id, opts }) {
   return (state) => {
-    const resourceState = config.getToState(state).get(resource, iMap());
+    // if src/index has a configureIguazuREST override function, the 
+    // value will be taken from there. config.getToState(state) returns a function;
+    // .get(resource) returns a function property resource. 
+    const getToState = config.getToState(state);
+
+    // get() - immutable. If resource not found, return an empty object as immutable
+    // where do I convert a js object to immutable object ???
+
+    // returns: state.resources + name of the resource, ex: posts as an object of immutable.
+    // if resource=="posts", the resourceState value will be state.resources.posts
+    const resourceState = getToState.get(resource, iMap());
+
+    // to query immutable hash, need idHash and query hash
+
+    // state.resource.
     const idHash = getCollectionIdHash(id);
     const queryHash = getQueryHash(opts);
+
+    /* the redux store has the following structure:
+    state.resources.posts.collections
+    state.resources.posts.items
+    */
+
+    // check if there is an error state.resources.posts.collections.error
     const error = resourceState.getIn(['collections', idHash, queryHash, 'error']);
+    // immutable swallows an error if property does not exist
     if (error) return error;
 
+    // no error, get associatedIds as js array. If path does not exist, return an empty object of immutable with associatedIds[] property. Convert to js object
     const { associatedIds } =
       resourceState.getIn(['collections', idHash, queryHash], iMap({ associatedIds: [] })).toJS();
 
+    // return a new array of js objects from state.resources.posts.items[resourceId] - hash id.  
     return associatedIds.map(resourceId => resourceState.getIn(['items', resourceId]).toJS());
   };
 }

@@ -39,9 +39,11 @@ export function getCollectionIdHash(id) {
     return hash(idObj);
   }
 
+  // will always return the same hash value for an empty object
   return hash({});
 }
 
+// get query parameters hash
 export function getQueryHash(opts = {}) {
   return hash(opts.query || {});
 }

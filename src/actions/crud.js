@@ -43,16 +43,25 @@ export function loadResource({ resource, id, opts, forceFetch }) {
   };
 }
 
+/*
+three possible scenarios:
+1) collection is loaded
+2) collection is being loaded
+3) collection has not been attempted to be loaded
+*/
 export function loadCollection({ resource, id, opts, forceFetch }) {
   return (dispatch, getState) => {
     const state = getState();
     let promise;
     if (collectionIsLoaded({ resource, id, opts })(state) && !forceFetch) {
+      // return colection from cache
       const data = getCollection({ resource, id, opts })(state);
       promise = data instanceof Error ? Promise.reject(data) : Promise.resolve(data);
     } else if (collectionIsLoading({ resource, id, opts })(state) && !forceFetch) {
+      // the call has been issued, return promise
       promise = getCollectionLoadPromise({ resource, id, opts })(state);
     } else {
+      // first time thru or if forceFetch is set
       promise = dispatch(executeFetch({ resource, id, opts, actionType: 'LOAD_COLLECTION' }));
     }
 
